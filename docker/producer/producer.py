@@ -31,34 +31,37 @@ while producer is None:
 
 # CSV oku
 print(f"[Producer] CSV okunuyor: {CSV_FILE}")
-df = pd.read_csv(CSV_FILE, low_memory=False)
-print(f"[Producer] Toplam satır: {len(df)}")
-
-# Sütun adlarını normalize et
-df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
 
 delay = 1.0 / MESSAGES_PER_SECOND
 sent = 0
 
-for _, row in df.iterrows():
-    message = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "app_id": str(row.get("app_id", "")),
-        "app_name": str(row.get("app_name", "")),
-        "review_id": str(row.get("review_id", row.get("recommendationid", sent))),
-        "user_id": str(row.get("author.steamid", row.get("steamid", sent))),
-        "review_text": str(row.get("review", ""))[:500],
-        "voted_up": str(row.get("voted_up", "")),
-        "votes_helpful": str(row.get("votes_helpful", "0")),
-        "playtime_forever": str(row.get("author.playtime_forever", "0"))
-    }
-    producer.send(TOPIC_NAME, value=message)
-    sent += 1
+try:
+    for chunk in pd.read_csv(CSV_FILE, chunksize=1000, low_memory=False):
+        # Sütun adlarını normalize et
+        chunk.columns = [c.strip().lower().replace(" ", "_") for c in chunk.columns]
+        
+        for _, row in chunk.iterrows():
+            message = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "app_id": str(row.get("app_id", "")),
+                "app_name": str(row.get("app_name", "")),
+                "review_id": str(row.get("review_id", row.get("recommendationid", sent))),
+                "user_id": str(row.get("author.steamid", row.get("steamid", sent))),
+                "review_text": str(row.get("review", ""))[:500],
+                "voted_up": str(row.get("voted_up", "")),
+                "votes_helpful": str(row.get("votes_helpful", "0")),
+                "playtime_forever": str(row.get("author.playtime_forever", "0"))
+            }
+            producer.send(TOPIC_NAME, value=message)
+            sent += 1
 
-    if sent % 1000 == 0:
-        print(f"[Producer] {sent} mesaj gönderildi")
+            if sent % 1000 == 0:
+                print(f"[Producer] {sent} mesaj gönderildi")
 
-    time.sleep(delay)
+            time.sleep(delay)
+            
+except Exception as e:
+    print(f"[Producer] CSV okunurken hata oluştu: {e}")
 
 producer.flush()
 print(f"[Producer] Tamamlandı! Toplam {sent} mesaj gönderildi.")
