@@ -35,7 +35,7 @@ services:
       KAFKA_BROKER: kafka:29092
       TOPIC_NAME: steam-reviews
       CSV_FILE: /app/data/steam_reviews.csv
-      MESSAGES_PER_SECOND: 50
+      MESSAGES_PER_SECOND: 3000
     restart: on-failure
 
   spark-master:
@@ -90,3 +90,4 @@ services:
       TOPIC_NAME: steam-reviews
       DELTA_PATH: /delta
     restart: on-failure
+    

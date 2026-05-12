@@ -9,7 +9,7 @@ from datetime import datetime
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
 TOPIC_NAME = os.getenv("TOPIC_NAME", "steam-reviews")
 CSV_FILE = os.getenv("CSV_FILE", "/app/data/steam_reviews.csv")
-MESSAGES_PER_SECOND = int(os.getenv("MESSAGES_PER_SECOND", "50"))
+MESSAGES_PER_SECOND = int(os.getenv("MESSAGES_PER_SECOND", "3000"))
 
 print(f"[Producer] Kafka Broker: {KAFKA_BROKER}")
 print(f"[Producer] Topic: {TOPIC_NAME}")
@@ -45,12 +45,22 @@ try:
                 "timestamp": datetime.utcnow().isoformat(),
                 "app_id": str(row.get("app_id", "")),
                 "app_name": str(row.get("app_name", "")),
-                "review_id": str(row.get("review_id", row.get("recommendationid", sent))),
-                "user_id": str(row.get("author.steamid", row.get("steamid", sent))),
-                "review_text": str(row.get("review", ""))[:500],
-                "voted_up": str(row.get("voted_up", "")),
-                "votes_helpful": str(row.get("votes_helpful", "0")),
-                "playtime_forever": str(row.get("author.playtime_forever", "0"))
+                
+                # Kaggle veri setinde review_id ve author.steamid bulunmadığı için sayacı (sent) ID olarak kullanıyoruz
+                "review_id": f"rev_{sent}",
+                "user_id": f"user_{sent}",
+                
+                # Yorum metni Kaggle'da 'review_text' olarak yer alıyor
+                "review_text": str(row.get("review_text", ""))[:500],
+                
+                # Olumlu/Olumsuz değerlendirmesi Kaggle'da 'review_score' olarak geçiyor (1 veya -1)
+                "voted_up": str(row.get("review_score", "")),
+                
+                # Faydalı bulma sayısı Kaggle'da 'review_votes' olarak geçiyor
+                "votes_helpful": str(row.get("review_votes", "0")),
+                
+                # Oynama süresi verisi bu veri setinde yer almıyor, pipeline'ı korumak için 0 atıyoruz
+                "playtime_forever": "0"
             }
             producer.send(TOPIC_NAME, value=message)
             sent += 1
